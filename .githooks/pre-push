@@ -1,0 +1,18 @@
+#!/bin/sh
+# Blocks any push from this repo unless you explicitly allow it.
+#
+# To enable:
+#   git config core.hooksPath .githooks
+#
+# To temporarily allow a single push:
+#   ALLOW_PUSH=1 git push
+
+if [ "$ALLOW_PUSH" = "1" ]; then
+  exit 0
+fi
+
+echo "Push blocked by repo hook (.githooks/pre-push)."
+echo "If you really want to push, run:"
+echo "  ALLOW_PUSH=1 git push"
+exit 1
+
