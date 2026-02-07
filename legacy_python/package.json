@@ -1,0 +1,30 @@
+{
+  "name": "newsapp",
+  "version": "1.0.0",
+  "description": "Python-based audio news app that tailors daily news summaries to your interests and listening history. It fetches recent news (24–48h), generates a concise 5–10 minute spoken brief using Gemini, avoids repetition via a FAISS RAG store, and asks for feedback to refine future briefs. Audio is generated with gTTS by default or Google Cloud Text-to-Speech if configured.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ProgrammerNick/general_news_app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ProgrammerNick/general_news_app/issues"
+  },
+  "homepage": "https://github.com/ProgrammerNick/general_news_app#readme",
+  "dependencies": {
+    "@tanstack/react-query": "^5.90.20",
+    "@tanstack/react-router": "^1.157.18",
+    "autoprefixer": "^10.4.24",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.563.0",
+    "postcss": "^8.5.6",
+    "tailwind-merge": "^3.4.0",
+    "tailwindcss": "^4.1.18"
+  }
+}

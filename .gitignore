@@ -1,53 +1,13 @@
-# --- Secrets / env ---
-.env
-.env.*
-!.env.example
-config_templates/.env.example
-
-# --- Python ---
-__pycache__/
-*.py[cod]
-*.pyd
-.Python
-*.egg-info/
-dist/
-build/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
-
-# Virtualenvs
-.venv/
-venv/
-ENV/
-env/
-
-# --- Node / frontend ---
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-frontend/.env
-frontend/.env.*
-
-# --- App-generated data ---
-data/
-*.mp3
-*.wav
-*.m4a
-*.ogg
-
-# If you want to keep sample outputs, remove these:
-pmbrief/**/__pycache__/
-backend/**/__pycache__/
-
-# --- OS / IDE ---
+node_modules
 .DS_Store
-Thumbs.db
-*.swp
-*.swo
-.idea/
-.vscode/
-.cursor/
-
+dist
+dist-ssr
+*.local
+count.txt
+.env
+.nitro
+.tanstack
+.wrangler
+.output
+.vinxi
+todos.json
