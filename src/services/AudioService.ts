@@ -23,7 +23,7 @@ export class AudioService {
         const request = {
             input: { text: text },
             // Select the language and SSML voice gender (optional)
-            voice: { languageCode: "en-US", name: process.env.AUDIO_VOICE || "en-US-Neural2-C" },
+            voice: { languageCode: "en-US", name: process.env.AUDIO_VOICE || "en-US-Journey-F" },
             // select the type of audio encoding
             audioConfig: { audioEncoding: "MP3" as const },
         };

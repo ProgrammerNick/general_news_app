@@ -1,6 +1,5 @@
 import { db } from "../db";
-import { dailyBriefs, userProfile } from "../db/schema";
-import { newsService } from "./NewsService";
+import { dailyBriefs, userProfile, feeds } from "../db/schema";
 import { vectorService } from "./VectorService";
 import { summarizerService } from "./SummarizerService";
 import { audioService } from "./AudioService";
@@ -8,9 +7,13 @@ import { emailService } from "./EmailService";
 import { getKeywordsFromInterests } from "../lib/interests";
 import { eq } from "drizzle-orm";
 
+/**
+ * Flow: Gemini creates the news brief (with web search) → that text is turned into audio.
+ * One API key (GEMINI_API_KEY) for content; Google Cloud TTS for audio.
+ */
 export class BriefService {
-    async generateDailyBrief(userId: string) {
-        // 1. Get User Profile and Interests
+    async generateDailyBrief(userId: string, feedId?: number, timeframe: string = "24h") {
+        // 1. Get user profile first (needed for email)
         const profile = await db.query.userProfile.findFirst({
             where: eq(userProfile.userId, userId),
         });
@@ -19,59 +22,71 @@ export class BriefService {
             throw new Error("User profile not found. Please complete onboarding.");
         }
 
-        const interests = profile.interests || [];
-        if (interests.length === 0) {
-            throw new Error("No interests configured. Please set up your profile.");
+        let interests: { categoryId: string; subcategoryIds: string[] }[] = [];
+
+        // 2. Determine source of interests (Feed or Profile)
+        if (feedId) {
+            const feed = await db.query.feeds.findFirst({
+                where: eq(feeds.id, feedId),
+            });
+            if (!feed || feed.userId !== userId) {
+                throw new Error("Feed not found or unauthorized.");
+            }
+            interests = feed.interests || [];
+            if (feed.context) {
+                console.log("Applying user context:", feed.context);
+            }
+        } else {
+            interests = profile.interests || [];
         }
 
-        // 2. Convert structured interests to keywords for news search
+        if (interests.length === 0) {
+            throw new Error("No interests configured for this feed. Please add topics.");
+        }
+
         const keywords = getKeywordsFromInterests(interests);
         if (keywords.length === 0) {
             throw new Error("No search keywords found. Please select specific topics.");
         }
 
-        // 3. Fetch News using keywords
-        console.log("Fetching news for keywords:", keywords.slice(0, 5));
-        const articles = await newsService.fetchNews(keywords.slice(0, 10)); // Limit to avoid API overload
-        if (articles.length === 0) {
-            throw new Error("No articles found for your interests.");
+        // 2. Gemini creates the brief (uses web search for recent news)
+        console.log(`Creating brief with Gemini (Timeframe: ${timeframe})...`);
+        const { text, summaryId } = await summarizerService.generateBriefFromInterests(keywords, timeframe, feedId ? (await db.query.feeds.findFirst({ where: eq(feeds.id, feedId) }))?.context : undefined);
+
+        if (!text?.trim()) {
+            throw new Error("Gemini did not return a brief. Please try again.");
         }
 
-        // 4. RAG Context - search user's past briefs for context
-        const ragContext = "";
-
-        // 5. Summarize
-        console.log("Generating summary...");
-        const { text, summaryId } = await summarizerService.generateBrief(
-            articles,
-            keywords,
-            ragContext
-        );
-
-        // 6. Generate Audio
+        // 3. Turn the text into audio
         console.log("Generating audio...");
         const audioUrl = await audioService.generateAudio(text);
+        // const audioUrl = "";
 
-        // 7. Save to DB with userId
+        // 4. Save to DB
         console.log("Saving brief...");
         const today = new Date().toISOString().split("T")[0];
         await db.insert(dailyBriefs).values({
             userId,
+            feedId: feedId || null,
             date: today,
             transcript: text,
-            audioUrl: audioUrl,
+            audioUrl,
             status: "completed",
         });
 
-        // 8. Store embeddings for future RAG (with userId)
-        await vectorService.storeEmbeddings(
-            articles.map((a) => ({
-                content: `${a.title} - ${a.description}`,
-                metadata: { url: a.url, source: a.source, publishedAt: a.publishedAt, userId },
-            }))
-        );
+        // 5. Store transcript for future RAG (optional)
+        try {
+            await vectorService.storeEmbeddings([
+                {
+                    content: text,
+                    metadata: { summaryId, userId, date: today },
+                },
+            ]);
+        } catch (err) {
+            console.error("Vector store failed (non-blocking):", err);
+        }
 
-        // 9. Send email if user has email
+        // 6. Email if configured
         if (profile.email) {
             console.log("Sending brief to email:", profile.email);
             try {

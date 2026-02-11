@@ -20,19 +20,20 @@ export const signIn = {
             credentials: "include",
         });
 
-        if (!res.ok) {
-            const text = await res.text();
-            let message = "Sign in failed";
-            try {
-                const data = JSON.parse(text);
-                message = data.message ?? data.error ?? message;
-            } catch {
-                if (text) message = `${message} (${res.status})`;
-            }
-            return { error: { message } };
+        // Success: 2xx or 3xx (better-auth may return 302 redirect)
+        if (res.ok || (res.status >= 300 && res.status < 400)) {
+            return { error: null };
         }
 
-        return { error: null };
+        const text = await res.text();
+        let message = "Sign in failed";
+        try {
+            const data = text ? JSON.parse(text) : {};
+            message = (data.message ?? data.error?.message ?? data.error ?? message) || message;
+        } catch {
+            if (text) message = `${message} (${res.status})`;
+        }
+        return { error: { message } };
     }
 };
 
@@ -50,19 +51,19 @@ export const signUp = {
             credentials: "include",
         });
 
-        if (!res.ok) {
-            const text = await res.text();
-            let message = "Sign up failed";
-            try {
-                const data = JSON.parse(text);
-                message = data.message ?? data.error ?? message;
-            } catch {
-                if (text) message = `${message} (${res.status})`;
-            }
-            return { error: { message } };
+        if (res.ok || (res.status >= 300 && res.status < 400)) {
+            return { error: null };
         }
 
-        return { error: null };
+        const text = await res.text();
+        let message = "Sign up failed";
+        try {
+            const data = text ? JSON.parse(text) : {};
+            message = (data.message ?? data.error?.message ?? data.error ?? message) || message;
+        } catch {
+            if (text) message = `${message} (${res.status})`;
+        }
+        return { error: { message } };
     }
 };
 

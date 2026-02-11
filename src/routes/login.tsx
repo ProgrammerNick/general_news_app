@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { signIn } from "../lib/auth-client";
+import { signIn, getSession } from "../lib/auth-client";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -23,20 +23,25 @@ function LoginPage() {
     setError("");
 
     try {
-      const { error } = await signIn.email({
+      const { error: signInError } = await signIn.email({
         email,
         password,
       });
 
-      if (error) {
-        setError(error.message || "Sign in failed");
+      if (signInError) {
+        setError(signInError.message || "Sign in failed");
         setIsLoading(false);
         return;
       }
 
-      navigate({ to: "/" });
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
+      const session = await getSession();
+      if (session?.user) {
+        navigate({ to: "/" });
+      } else {
+        setError("Signed in but session not found. Try refreshing the page.");
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
     }

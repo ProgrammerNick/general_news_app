@@ -5,6 +5,7 @@ import { INTEREST_CATEGORIES } from "../lib/interests";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { ArrowLeft, Check } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -86,104 +87,116 @@ function SettingsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <span className="text-lg">☀️</span>
+            <div className="w-10 h-10 rounded-lg bg-slate-900 text-white flex items-center justify-center font-serif text-xl font-bold">
+              M
             </div>
-            <span className="font-bold text-xl text-slate-900">Settings</span>
+            <span className="font-serif font-bold text-xl text-slate-900 tracking-tight">Topics & Interests</span>
           </div>
 
-          <Button asChild variant="ghost">
-            <a href="/">← Back</a>
+          <Button asChild variant="ghost" className="gap-2">
+            <a href="/">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Dashboard
+            </a>
           </Button>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-12">
+        <div className="mb-8">
+          <h1 className="text-3xl font-serif font-bold text-slate-900 mb-2">Curate Your Intelligence</h1>
+          <p className="text-slate-500 text-lg">Select the topics that matter most to your daily briefing.</p>
+        </div>
+
         {/* Categories Section */}
-        <Card className="mb-8 animate-fade-in">
+        <Card className="mb-8 border-slate-200 shadow-sm">
           <CardHeader>
-            <CardTitle>Your Interests</CardTitle>
-            <CardDescription>Select the topics you want in your morning briefs</CardDescription>
+            <CardTitle className="font-serif">Broad Interests</CardTitle>
+            <CardDescription>Select high-level categories to enable detailed curation</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
-              {INTEREST_CATEGORIES.map((category) => (
-                <button
-                  key={category.id}
-                  type="button"
-                  onClick={() => toggleCategory(category.id)}
-                  className={`p-4 rounded-xl border-2 text-center transition-all hover:scale-[1.02] ${selectedCategories.includes(category.id)
-                    ? "border-indigo-500 bg-indigo-50"
-                    : "border-slate-200 hover:border-slate-300"
-                    }`}
-                >
-                  <span className="text-2xl block mb-1">{category.emoji}</span>
-                  <span className={`font-medium text-sm ${selectedCategories.includes(category.id) ? 'text-indigo-700' : 'text-slate-700'
-                    }`}>
-                    {category.label}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* Subcategories */}
-            {filteredCategories.length > 0 && (
-              <div className="space-y-6 pt-6 border-t border-slate-200">
-                <h3 className="font-medium text-slate-900">Specific Topics</h3>
-                {filteredCategories.map((category) => (
-                  <div key={category.id}>
-                    <p className="text-sm text-slate-500 mb-2 flex items-center gap-2">
-                      <span>{category.emoji}</span>
+              {INTEREST_CATEGORIES.map((category) => {
+                const isSelected = selectedCategories.includes(category.id);
+                return (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => toggleCategory(category.id)}
+                    className={`p-4 rounded-xl border-2 text-center transition-all duration-200 ${isSelected
+                      ? "border-slate-900 bg-slate-900 text-white shadow-md"
+                      : "border-slate-100 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                      }`}
+                  >
+                    <span className="text-2xl block mb-2">{category.emoji}</span>
+                    <span className={`font-semibold text-sm block ${isSelected ? "text-white" : "text-slate-700"}`}>
                       {category.label}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {category.subcategories.map((sub) => (
-                        <Badge
-                          key={sub.id}
-                          variant={(selectedSubcategories[category.id] || []).includes(sub.id) ? "default" : "outline"}
-                          className={`cursor-pointer transition-all ${(selectedSubcategories[category.id] || []).includes(sub.id)
-                            ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                            : "hover:bg-slate-100"
-                            }`}
-                          onClick={() => toggleSubcategory(category.id, sub.id)}
-                        >
-                          {sub.label}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </CardContent>
         </Card>
 
-        {/* Save Button */}
-        <div className="animate-fade-in">
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm text-center">
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm text-center">
-              ✓ Settings saved! Redirecting...
-            </div>
-          )}
+        {/* Subcategories */}
+        {filteredCategories.length > 0 && (
+          <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+            {filteredCategories.map((category) => (
+              <Card key={category.id} className="border-slate-200 shadow-sm overflow-hidden">
+                <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{category.emoji}</span>
+                    <CardTitle className="font-serif text-xl">{category.label}</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="flex flex-wrap gap-3">
+                    {category.subcategories.map((sub) => {
+                      const isSelected = (selectedSubcategories[category.id] || []).includes(sub.id);
+                      return (
+                        <Badge
+                          key={sub.id}
+                          variant={isSelected ? "default" : "outline"}
+                          className={`cursor-pointer px-3 py-1.5 text-sm transition-all ${isSelected
+                            ? "bg-slate-900 text-white hover:bg-slate-800 border-slate-900"
+                            : "hover:bg-slate-100 border-slate-200 text-slate-600"
+                            }`}
+                          onClick={() => toggleSubcategory(category.id, sub.id)}
+                        >
+                          {isSelected && <Check className="w-3.5 h-3.5 mr-1.5 inline-block" />}
+                          {sub.label}
+                        </Badge>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
-          <Button
-            onClick={handleSave}
-            disabled={isLoading || selectedCategories.length === 0}
-            size="lg"
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-6 text-lg font-semibold shadow-xl shadow-indigo-500/25 hover:shadow-indigo-500/40"
-          >
-            {isLoading ? "Saving..." : "Save Settings"}
-          </Button>
+        {/* Save Button */}
+        <div className="mt-8 sticky bottom-6 z-40 bg-white/80 backdrop-blur p-4 rounded-2xl border border-slate-200 shadow-2xl">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              {error && <p className="text-red-600 text-sm font-medium">{error}</p>}
+              {success && <p className="text-green-600 text-sm font-medium">Settings saved successfully!</p>}
+            </div>
+            <Button
+              onClick={handleSave}
+              disabled={isLoading || selectedCategories.length === 0}
+              size="lg"
+              className="px-8 font-semibold"
+            >
+              {isLoading ? "Saving..." : "Save Topics"}
+            </Button>
+          </div>
         </div>
       </main>
     </div>

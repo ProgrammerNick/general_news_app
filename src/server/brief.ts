@@ -11,6 +11,7 @@ export type BriefListItem = {
   status: string | null;
   audioUrl: string | null;
   createdAt: string | null;
+  transcript: string | null;
 };
 
 export type BriefDetail = BriefListItem & {

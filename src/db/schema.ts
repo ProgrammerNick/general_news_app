@@ -80,9 +80,21 @@ export const newsEmbeddings = pgTable("news_embeddings", {
     createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const feeds = pgTable("feeds", {
+    id: serial("id").primaryKey(),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    // Structured interests: [{ categoryId: "finance", subcategoryIds: ["ma", "vc"] }]
+    interests: jsonb("interests").$type<{ categoryId: string; subcategoryIds: string[] }[]>().default([]),
+    context: text("context"), // specific user instructions (e.g., "Focus on VC fundraising")
+    timeframe: text("timeframe").default("24h"), // 24h, 48h, 7d, 30d
+    createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const dailyBriefs = pgTable("daily_briefs", {
     id: serial("id").primaryKey(),
     userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    feedId: integer("feed_id").references(() => feeds.id, { onDelete: "set null" }),
     date: text("date").notNull(), // YYYY-MM-DD
     audioUrl: text("audio_url"),
     transcript: text("transcript"),
@@ -93,4 +105,5 @@ export const dailyBriefs = pgTable("daily_briefs", {
 // Type exports for use in services
 export type UserProfile = typeof userProfile.$inferSelect;
 export type DailyBrief = typeof dailyBriefs.$inferSelect;
+export type Feed = typeof feeds.$inferSelect;
 export type NewsEmbedding = typeof newsEmbeddings.$inferSelect;

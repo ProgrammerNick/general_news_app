@@ -1,5 +1,7 @@
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { generateText } from "ai";
 
-interface Article {
+export interface Article {
     title: string;
     description: string;
     url: string;
@@ -7,96 +9,102 @@ interface Article {
     source: string;
 }
 
-interface NewsApiResponse {
-    status: string;
-    totalResults: number;
-    articles: Array<{
-        source: { id: string | null; name: string };
-        author: string | null;
-        title: string;
-        description: string | null;
-        url: string;
-        urlToImage: string | null;
-        publishedAt: string;
-        content: string | null;
-    }>;
-}
+const GEMINI_MODEL = process.env.GEMINI_NEWS_MODEL || "gemini-2.0-flash";
 
-const NEWSAPI_BASE = "https://newsapi.org/v2/everything";
-
+/**
+ * News fetching via Gemini with Google Search grounding.
+ * Uses GEMINI_API_KEY (or GOOGLE_GENERATIVE_AI_API_KEY) — no separate NewsAPI key.
+ */
 export class NewsService {
     private apiKey: string;
 
     constructor() {
-        this.apiKey = process.env.NEWSAPI_KEY || "";
+        this.apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || "";
         if (!this.apiKey) {
-            console.warn("NEWSAPI_KEY is not set");
+            console.warn(
+                "GEMINI_API_KEY is not set — news fetching will be skipped. Add it to .env for briefs. Login still works."
+            );
         }
     }
 
-    async fetchNews(interests: string[], hours: number = 36, maxArticles: number = 30): Promise<Article[]> {
-        if (!this.apiKey) return [];
+    async fetchNews(interests: string[], _hours: number = 36, maxArticles: number = 30): Promise<Article[]> {
+        if (!this.apiKey || interests.length === 0) return [];
 
-        const now = new Date();
-        const startTime = new Date(now.getTime() - hours * 60 * 60 * 1000);
-        const fromIso = startTime.toISOString();
+        const google = createGoogleGenerativeAI({
+            apiKey: this.apiKey,
+        });
 
-        const articlesByUrl = new Map<string, Article>();
+        const keywords = interests.slice(0, 10).join(", ");
+        const prompt = `Using web search, find the most relevant recent news (last 24–48 hours) about these topics: ${keywords}.
 
-        for (const interest of interests) {
-            const q = interest.trim();
-            if (!q) continue;
+Return ONLY a valid JSON array of objects. No other text, no markdown, no code fence.
+Each object must have exactly: "title" (string), "description" (string), "source" (string, e.g. site name), "url" (string, article URL), "publishedAt" (string, ISO date if possible or approximate).
+Return between 5 and ${Math.min(maxArticles, 20)} items.`;
 
-            const params = new URLSearchParams({
-                q,
-                from: fromIso,
-                sortBy: "publishedAt",
-                language: "en",
-                pageSize: "100",
-                apiKey: this.apiKey,
+        try {
+            const { text, providerMetadata } = await generateText({
+                model: google(GEMINI_MODEL),
+                tools: {
+                    google_search: google.tools.googleSearch({}),
+                },
+                prompt,
             });
 
-            try {
-                const response = await fetch(`${NEWSAPI_BASE}?${params.toString()}`);
+            const articles = this.parseArticlesFromResponse(text, providerMetadata);
+            return articles.slice(0, maxArticles);
+        } catch (error) {
+            console.error("Gemini news fetch failed:", error);
+            return [];
+        }
+    }
 
-                if (response.status === 429) {
-                    // Simple backoff
-                    await new Promise((resolve) => setTimeout(resolve, 2000));
-                    // Retry once? Or just skip for now to avoid complexity in this loop
-                    continue;
-                }
+    private parseArticlesFromResponse(text: string, providerMetadata: unknown): Article[] {
+        const articles: Article[] = [];
+        const nowIso = new Date().toISOString();
 
-                if (!response.ok) {
-                    console.error(`NewsAPI error for interest "${q}": ${response.statusText}`);
-                    continue;
-                }
+        // Try to extract JSON array from response (may be wrapped in markdown or extra text)
+        let jsonStr = text.trim();
+        const arrayMatch = jsonStr.match(/\[[\s\S]*\]/);
+        if (arrayMatch) {
+            jsonStr = arrayMatch[0];
+        }
 
-                const data = (await response.json()) as NewsApiResponse;
+        try {
+            const parsed = JSON.parse(jsonStr) as unknown;
+            if (!Array.isArray(parsed)) return articles;
 
-                for (const art of data.articles || []) {
-                    if (!art.url || articlesByUrl.has(art.url)) continue;
-
-                    articlesByUrl.set(art.url, {
-                        title: art.title?.trim() || "",
-                        description: (art.description || "").trim(),
-                        url: art.url,
-                        publishedAt: art.publishedAt,
-                        source: art.source?.name || "",
+            for (const item of parsed) {
+                if (item && typeof item === "object" && "title" in item) {
+                    articles.push({
+                        title: String((item as any).title ?? "").trim() || "Untitled",
+                        description: String((item as any).description ?? "").trim(),
+                        url: String((item as any).url ?? "").trim() || "#",
+                        publishedAt: String((item as any).publishedAt ?? nowIso).trim(),
+                        source: String((item as any).source ?? "").trim() || "Web",
                     });
                 }
-            } catch (error) {
-                console.error(`Failed to fetch news for interest "${q}":`, error);
+            }
+        } catch {
+            // Fallback: use grounding metadata URLs if response wasn't valid JSON
+            const meta = providerMetadata as { google?: { groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string; title?: string } }> } } } | undefined;
+            const chunks = meta?.google?.groundingMetadata?.groundingChunks;
+            if (chunks?.length) {
+                for (const ch of chunks.slice(0, 15)) {
+                    const uri = ch.web?.uri;
+                    if (uri) {
+                        articles.push({
+                            title: ch.web?.title ?? "Article",
+                            description: "",
+                            url: uri,
+                            publishedAt: nowIso,
+                            source: new URL(uri).hostname.replace(/^www\./, ""),
+                        });
+                    }
+                }
             }
         }
 
-        const allArticles = Array.from(articlesByUrl.values());
-
-        // Sort by publishedAt descending
-        allArticles.sort((a, b) => {
-            return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
-        });
-
-        return allArticles.slice(0, maxArticles);
+        return articles;
     }
 }
 

@@ -14,7 +14,7 @@ export default defineConfig({
     }),
     tailwindcss(),
   ],
-  server: {
+    server: {
     proxy: {
       "/api": {
         target: "http://localhost:4000",
@@ -23,6 +23,7 @@ export default defineConfig({
           proxy.on("proxyReq", (proxyReq) => {
             proxyReq.setHeader("X-Forwarded-Host", "localhost:3001");
             proxyReq.setHeader("X-Forwarded-Proto", "http");
+            proxyReq.setHeader("Host", "localhost:3001");
           });
         },
       },

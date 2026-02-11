@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signUp } from "../lib/auth-client";
 import { INTEREST_CATEGORIES } from "../lib/interests";
-import { saveInterestsFn } from "../server/profile";
+import { getProfileFn, getSessionFn, saveInterestsFn } from "../server/profile";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -11,17 +11,28 @@ import { Badge } from "../components/ui/badge";
 
 export const Route = createFileRoute("/register")({
   component: RegisterPage,
+  loader: async () => {
+    const [session, profile] = await Promise.all([
+      getSessionFn(),
+      getProfileFn().catch(() => null),
+    ]);
+    return { session, profile };
+  },
 });
 
 type Step = "account" | "categories" | "subcategories";
 
 function RegisterPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<Step>("account");
+  const { session, profile } = Route.useLoaderData();
+  const hasSession = !!session?.user;
+  const needsOnboarding = hasSession && (!profile || !profile.onboardingComplete);
+  const alreadyOnboarded = hasSession && profile?.onboardingComplete;
+  const initialStep: Step = needsOnboarding ? "categories" : "account";
+  const [step, setStep] = useState<Step>(initialStep);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Account info
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -31,6 +42,16 @@ function RegisterPage() {
   const [selectedSubcategories, setSelectedSubcategories] = useState<
     Record<string, string[]>
   >({});
+
+  useEffect(() => {
+    if (alreadyOnboarded) {
+      navigate({ to: "/" });
+    }
+  }, [alreadyOnboarded, navigate]);
+
+  if (alreadyOnboarded) {
+    return null;
+  }
 
   const handleAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,8 +144,8 @@ function RegisterPage() {
             <div key={s} className="flex items-center">
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${i <= currentStepIndex
-                    ? "bg-white text-indigo-900"
-                    : "bg-white/20 text-white/60"
+                  ? "bg-white text-indigo-900"
+                  : "bg-white/20 text-white/60"
                   }`}
               >
                 {i + 1}
@@ -241,8 +262,8 @@ function RegisterPage() {
                     type="button"
                     onClick={() => toggleCategory(category.id)}
                     className={`p-5 rounded-2xl border-2 text-left transition-all hover:scale-[1.02] ${selectedCategories.includes(category.id)
-                        ? "bg-white border-white text-slate-900"
-                        : "bg-white/5 border-white/20 text-white hover:bg-white/10"
+                      ? "bg-white border-white text-slate-900"
+                      : "bg-white/5 border-white/20 text-white hover:bg-white/10"
                       }`}
                   >
                     <span className="text-3xl block mb-2">{category.emoji}</span>
@@ -300,8 +321,8 @@ function RegisterPage() {
                           key={sub.id}
                           variant={(selectedSubcategories[category.id] || []).includes(sub.id) ? "default" : "outline"}
                           className={`cursor-pointer px-4 py-2 text-sm transition-all ${(selectedSubcategories[category.id] || []).includes(sub.id)
-                              ? "bg-white text-indigo-900 hover:bg-indigo-100"
-                              : "bg-transparent text-white border-white/30 hover:bg-white/10"
+                            ? "bg-white text-indigo-900 hover:bg-indigo-100"
+                            : "bg-transparent text-white border-white/30 hover:bg-white/10"
                             }`}
                           onClick={() => toggleSubcategory(category.id, sub.id)}
                         >

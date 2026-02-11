@@ -36,6 +36,20 @@
       "when": 1770348496278,
       "tag": "0004_aberrant_silver_fox",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1770783912757,
+      "tag": "0005_colorful_chronomancer",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1770785350854,
+      "tag": "0006_chubby_richard_fisk",
+      "breakpoints": true
     }
   ]
 }
